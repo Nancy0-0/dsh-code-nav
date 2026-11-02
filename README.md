@@ -11,7 +11,7 @@ DeepSeek Harness（DSH）的插件 monorepo，包含两个互相独立的小插�
 
 | 目录 | npm 包名 | 注册的宿主路由 | 状态 |
 |---|---|---|---|
-| `packages/symbol-links` | `dsh-symbol-links` | `POST /api/symbol-links/resolve` | 定义跳转 + 右键「引用候选 / 同名定义 / 复制名字」可用（文本匹配） |
+| `packages/symbol-links` | `dsh-symbol-links` | `POST /api/symbol-links/resolve` | 定义跳转已实现；引用/实现候选为开发中（文本匹配） |
 | `packages/file-tree-actions` | `dsh-file-tree-actions` | `POST /api/file-tree-actions` | 新建/改名/回收站/复制/拖拽可用 |
 
 ### symbol-links：聊天内符号导航
@@ -21,7 +21,7 @@ DeepSeek Harness（DSH）的插件 monorepo，包含两个互相独立的小插�
 - 解析由 host 的只读索引完成，浏览器端只负责装饰、发同源 `POST`、调用官方的 `openFile(path, { line })`。
 - 解析不到时保持原样，只给一个轻提示，不改变文本、不影响复制。
 
-> 右键菜单（2026-11-02 接入）：**打开定义**、**引用候选（文本匹配）**、**同名定义（候选）**、**复制名字**。引用候选与同名定义都是正则/同名匹配，**不声称**语义调用关系或接口实现；结果上限 50/20 条，超出或索引未完成会在面板里提示。
+> 右键菜单（2026-11-02 接入）：**打开定义**、**引用候选（文本匹配）**、**同名定义（候选）**、**复制名字**。引用候选与同名定义都是正则/同名匹配，**不声称**语义调用关系或接口实现，**仍按「开发中」对待**；结果上限 50/20 条，超出或索引未完成会在面板里提示。
 
 ### file-tree-actions：Files 侧栏文件操作
 
@@ -102,16 +102,16 @@ file-tree-actions/
 在仓库根目录：
 
 ```powershell
-npm test        # node --test
+npm test        # node --test + file-tree-actions 的 host 测试
 npm run check   # 对两个包的 JS 逐个 node --check
 ```
 
-> 根 `package.json` 的 `check` 脚本按 `packages/symbol-links` 与 `packages/file-tree-actions` 这两个目录名写死了文件路径；移入时请保持目录名，或同步修改脚本。
+> 根 `package.json` 的 `check` 脚本按 `packages/symbol-links` 与 `packages/file-tree-actions` 这两个目录名写死了文件路径；若目录改名，请同步修改脚本。
 
 ## 已知限制
 
 - **精度是正则级，不是编译器级**：宏、模板元编程、同名重载、生成代码可能判错；解析阶梯会回退到包装函数或首次出现，返回结果带 `via` 标注来源。
-- **引用/实现尚未接线**：host 有数据，浏览器端仍是开发中；目前只有定义跳转是完整闭环。
+- **引用/实现仍是文本级候选（开发中）**：右键可查，但只是文本匹配/同名定义，不是语义引用或接口实现；目前只有定义跳转是稳定闭环。
 - **索引范围**：默认只索引会话工作区；其他仓库需要在插件配置里显式声明 `extraRoots`（最多 4 个，只读）。超过 5 万个文件、单文件超过 2 MB 的内容会被跳过。
 - **冷启动**：大仓库首次索引有 3.5 秒等待上限，超时返回 `incomplete` 并在后台继续建；期间点击会提示「正在建立索引」。
 - **升级宿主可能失效**：两个客户端半都依赖官方 DOM 约定（会话滚动容器、文件树行属性），宿主升级改选择器时需要跟着改。

@@ -69,7 +69,7 @@ hint 文件来自请求的 `hintFiles`，只用于排序，不作为可信路径
 - 请求体：`{ sessionId, names: string[], hintFiles?: string[], want?: 'definition'|'references'|'implementation' }`。
 - 限制：body ≤ 64 KiB；名字必须匹配 `^[A-Za-z_][A-Za-z0-9_:<>~]{0,119}$`，单请求最多 24 个；`sessionId` 缺失直接 400；会话 cwd 不可用 400。
 - 响应：`{ ok, incomplete, want, results:[{name,path,line,kind,via}], truncated, roots }`。
-- `want='definition'`（默认）走上面的解析阶梯；`want='references'` 返回最多 50 条 `path:line` 去重结果；`want='implementation'` 返回最多 20 条同名定义。**后两种目前只有 host 实现，浏览器端未接线，属于开发中。**
+- `want='definition'`（默认）走上面的解析阶梯；`want='references'` 返回最多 50 条 `path:line` 去重结果；`want='implementation'` 返回最多 20 条同名定义。浏览器端右键菜单已有「引用候选（文本匹配）」「同名定义（候选）」入口，但结果是文本级候选，不保证语义调用关系或接口实现，仍按**开发中**对待。
 - 输出校正：每个结果用 `realpath` 解析，必须仍在对应根的 realpath 边界内，否则丢弃（防符号链接/junction 越界）。
 
 同源守卫（这条路由挂在 webServer 上，因此自己做校验）：
@@ -86,6 +86,7 @@ hint 文件来自请求的 `hintFiles`，只用于排序，不作为可信路径
 - 候选条件是合法标识符、长度 3–80、且不在关键字/标准库停用词表里；命中候选打 `data-sym-link` 标记，样式只加虚线下划线，不改文本、不影响复制；
 - **会话 id** 来自官方 per-session 钩子 `slots.inject('conversation.user.text.node', …)` 的 `inject(sessionId)` 回调；`conversation.chat.turnTail` 槽的 props 作为补充来源，同时暂存其中的 `openFile`。这是之前「拿不到 sessionId，点击无反应」问题的修复点；
 - 点击走 document 级捕获委托；只有带标记的 `<code>` 才处理，且加 `data-sym-busy` 防止重复点击。点击时**捕获**当时的 `(sessionId, openFile)`，请求返回后如果会话已切走就丢弃结果；
+- 右键同一条 `<code>` 会弹出轻量面板：「打开定义」「引用候选（文本匹配）」「同名定义（候选）」「复制名字」。后两项复用同一条路由，面板明确标注「文本匹配，不代表语义调用关系」「同名定义候选，不保证是接口实现」；
 - 同 `(sessionId, name)` 的并发请求合并；命中缓存 60 s、未命中缓存 20 s，会话切换清空；`incomplete=true` 的未命中不缓存；
 - 打开优先级：
   1. 槽 props 里的官方 `openFile(path, { line })`；
@@ -106,7 +107,7 @@ hint 文件来自请求的 `hintFiles`，只用于排序，不作为可信路径
 - `op` 白名单：`create-file`、`create-dir`、`rename`、`delete`；字段必须是字符串；
 - 允许根 = 所有会话的 `header.cwd` + `sandboxPolicy.workspaceRoot` 兜底，全部先 `realpath`；请求的 `root` 必须等于某个允许根或落在其下；
 - 目标路径再 `realpath`，必须仍在真实根内；符号链接指向根外一律拒绝；
-- 名字只允许单个路径片段：拒绝 `/`、`\\`、`.`、`..`、控制字符、Windows 保留名与非法字符；新建/改名绝不覆盖已存在目标（冲突 409）；不能改名或删除工作区根目录；
+- 名字只允许单个路径片段：拒绝 `/`、`\`、`.`、`..`、控制字符、Windows 保留名与非法字符；新建/改名绝不覆盖已存在目标（冲突 409）；不能改名或删除工作区根目录；
 - 删除只走 Windows 回收站（PowerShell `-EncodedCommand` + `Microsoft.VisualBasic.FileIO.FileSystem`）；PowerShell 失败就返回错误，不降级为永久删除；非 Windows 返回 501。
 
 错误映射：`400` 参数/名字非法，`403` 越界或无权限，`404` 不存在，`409` 已存在，`413` 请求体过大，`501` 平台不支持，`500` 其他。
@@ -178,4 +179,4 @@ hint 文件来自请求的 `hintFiles`，只用于排序，不作为可信路径
 - 当前不接 LSP；语义定义与跨语言精确解析不在本版范围。
 - 不解析跨仓库符号，除非在服务端配置 `extraRoots`；首版不信任客户端传入的额外根。
 - 不修改宿主包或 `app.asar`；所有能力通过公开的 slots、`openFile`、`webServer`、`connection.fetch` 组合。
-- 引用/实现的 host 数据路径已存在，后续工作主要是浏览器端交互与结果展示；在接线完成前，README 与本文都按「开发中」标注。
+- 引用/实现已有 host 数据路径与右键候选入口，但仍是文本级启发式结果；后续工作主要是提升语义精度、结果展示与交互细节，在完成前 README 与本文都按「开发中」标注。

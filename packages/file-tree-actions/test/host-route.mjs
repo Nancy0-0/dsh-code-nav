@@ -106,7 +106,12 @@ try {
   const victim = join(root, 'recycle-me.txt')
   await fs.writeFile(victim, 'x')
   const recycled = await call({ op: 'delete', root, path: victim })
-  check('delete sends to recycle bin', recycled.status === 200 && !(await exists(victim)), recycled)
+  if (process.platform === 'win32') {
+    check('delete sends to recycle bin', recycled.status === 200 && !(await exists(victim)), recycled)
+  } else {
+    // 非 Windows 没有回收站实现：必须明确拒绝（501），且文件原样保留，绝不静默永久删除。
+    check('delete refuses on non-Windows', recycled.status === 501 && (await exists(victim)), recycled)
+  }
 
   // 释放
   if (typeof disposer === 'function') disposer()

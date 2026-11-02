@@ -158,7 +158,7 @@ function withTimeout(promise, ms) {
 }
 
 async function grepFallback(index, name, deadline) {
-  const re = new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b')
+  const re = new RegExp('\\b' + escapeRegex(name) + '\\b')
   for (const file of index.files) {
     if (Date.now() > deadline) return { hit: null, exhausted: true }
     let text
@@ -173,6 +173,11 @@ async function grepFallback(index, name, deadline) {
     }
   }
   return { hit: null, exhausted: false }
+}
+
+/** 正则转义（用回调，避免 replace 的 $& 被解释）。 */
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, (ch) => '\\' + ch)
 }
 
 /**
@@ -192,7 +197,7 @@ async function collectReferences(index, name, deadline, limit, out) {
     for (const site of [...entry.defs, ...entry.calls]) push(site.path, site.line, site.kind)
   }
   if (out.length >= limit) return { exhausted: false }
-  const re = new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\export function apply(ctx, config) {') + '\\b')
+  const re = new RegExp('\\b' + escapeRegex(name) + '\\b')
   for (const file of index.files) {
     if (Date.now() > deadline) return { exhausted: true }
     let text

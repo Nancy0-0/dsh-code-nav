@@ -184,16 +184,31 @@ window.__ModuleLoader__.load({
       return task
     }
 
+    /** 打开文件并定位行：优先走 sidebarRight.openResource（它内部会展开右侧栏），再回退 openFile。 */
     function openResolved(openFile, path, line) {
-      if (typeof openFile === 'function') {
-        openFile(path, { line })
-        return true
-      }
-      const ctx = getCtx()
-      const sidebar = ctx && typeof ctx.get === 'function' ? ctx.get('sidebarRight') : undefined
-      if (sidebar === undefined || typeof sidebar.openResource !== 'function') return false
       const encoded = path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')
-      sidebar.openResource('dsh-resource://file/session/' + encodeURIComponent(sessionCtx.sessionId) + '/' + encoded, { params: { line } })
+      const attempt = () => {
+        const ctx = getCtx()
+        const sidebar = ctx && typeof ctx.get === 'function' ? ctx.get('sidebarRight') : undefined
+        if (sidebar !== undefined && typeof sidebar.openResource === 'function' && sessionCtx.sessionId !== '') {
+          // 官方实现里 openContent 会 planSetExpanded(true)：右侧栏收起时也会展开
+          sidebar.openResource('dsh-resource://file/session/' + encodeURIComponent(sessionCtx.sessionId) + '/' + encoded, { params: { line } })
+          return true
+        }
+        if (typeof openFile === 'function') {
+          openFile(path, { line })
+          return true
+        }
+        return false
+      }
+      try {
+        if (attempt()) return true
+      } catch (error) {
+        // 会话切换后侧栏可能尚未 adopt：稍后重试一次
+      }
+      setTimeout(() => {
+        try { attempt() } catch (error) { /* 忽略 */ }
+      }, 180)
       return true
     }
 

@@ -1,0 +1,48 @@
+{
+  "name": "dsh-file-tree-actions",
+  "version": "0.2.1",
+  "description": "Files 侧栏增强：右键复制路径 / 新建 / 重命名 / 移到回收站，拖拽进对话栏插入 @ 引用",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./lib/paths": "./lib/paths.js",
+    "./lib/ops": "./lib/ops.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/paths.js",
+    "lib/ops.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-files"
+      ]
+    }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "files",
+    "copypath",
+    "drag",
+    "recycle-bin"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check index.js && node --check client.js && node --check lib/ops.js && node --check lib/paths.js",
+    "test": "node test/host-ops.mjs && node test/host-route.mjs"
+  }
+}

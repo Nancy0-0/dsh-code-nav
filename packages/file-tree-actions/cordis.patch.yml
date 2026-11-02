@@ -1,0 +1,9 @@
+# ============================================================================
+# dsh-file-tree-actions —— bundle patch
+# 把插件的一行插入 Desktop / Web profile 的配置树。
+# insert id 与包名、client.js 的 __ModuleLoader__ id 保持一致。
+# 浏览器半边由 package.json 的 dsh.client 段声明。
+# ============================================================================
+- insert:
+    - id: dsh-file-tree-actions
+      name: 'dsh-file-tree-actions'

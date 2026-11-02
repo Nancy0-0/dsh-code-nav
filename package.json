@@ -1,0 +1,17 @@
+{
+  "name": "dsh-code-nav",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DeepSeek Harness 插件 monorepo：聊天内符号导航与 Files 侧栏文件操作",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "check": "node --check packages/symbol-links/lib/index.js && node --check packages/symbol-links/lib/client.js && node --check packages/symbol-links/lib/resolver.js && node --check packages/file-tree-actions/index.js && node --check packages/file-tree-actions/client.js && node --check packages/file-tree-actions/lib/ops.js && node --check packages/file-tree-actions/lib/paths.js",
+    "test": "node --test packages/symbol-links/test/resolve.test.mjs && node packages/file-tree-actions/test/host-ops.mjs && node packages/file-tree-actions/test/host-route.mjs"
+  }
+}

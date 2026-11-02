@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>dsh-file-tree-actions harness</title>
+  <style>
+    body { font: 13px system-ui; margin: 0; }
+    li { list-style: none; }
+    .row { display: block; padding: 4px; }
+    #result { white-space: pre-wrap; font-family: monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <!-- 模拟宿主文件树的结构（属性名与 dsh-client-ui-sidebar-files 一致） -->
+  <div id="tree" data-files-state="tree" data-files-root="C:\ws">
+    <div id="header">
+      <span id="rootPath" data-files-path="true">C:\ws</span>
+      <button type="button" data-files-reload>reload</button>
+    </div>
+    <div data-files-body>
+      <ul>
+        <li id="dir" data-files-entry="directory" data-files-path="C:\ws\sub">
+          <button class="row" type="button">sub</button>
+          <ul>
+            <li id="file" data-files-entry="file" data-files-path="C:\ws\sub\a b.md">
+              <button class="row" type="button">a b.md</button>
+            </li>
+            <li id="plain" data-files-entry="file" data-files-path="C:\ws\README.md">
+              <button class="row" type="button">README.md</button>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <pre id="result">pending</pre>
+
+  <script>
+    // ---- ModuleLoader 桩：只收集插件定义并调用 apply ----
+    window.__ModuleLoader__ = {
+      load(def) {
+        window.__def = def
+      }
+    }
+    window.__errors = []
+    window.addEventListener('error', (e) => window.__errors.push(String(e.message)))
+    window.addEventListener('unhandledrejection', (e) => window.__errors.push('rejection: ' + String(e.reason)))
+
+    // ---- 宿主写路由的 fetch 桩：记录请求、返回可编程响应；支持人为挂起以测陈旧完成 ----
+    window.__calls = []
+    window.__reply = { ok: true }
+    window.__reloads = 0
+    window.__defer = false
+    window.__pending = []
+    window.fetch = async (url, init) => {
+      const payload = JSON.parse(init.body)
+      window.__calls.push({ url, payload })
+      if (window.__defer) await new Promise((resolve) => window.__pending.push(resolve))
+      const reply = window.__reply
+      return {
+        ok: reply.ok !== false,
+        status: reply.ok === false ? 409 : 200,
+        json: async () => reply,
+      }
+    }
+    window.__releasePending = () => {
+      const list = window.__pending.splice(0)
+      for (const resolve of list) resolve()
+    }
+    document.addEventListener('click', (event) => {
+      const target = event.target
+      if (target && target.hasAttribute && target.hasAttribute('data-files-reload')) window.__reloads += 1
+    }, true)
+  </script>
+  <script src="../client.js"></script>
+  <script>
+    (async function () {
+      const out = { checks: [] }
+      const check = (name, pass, detail) => out.checks.push({ name, pass: !!pass, detail })
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+
+      try {
+        check('module loaded', !!window.__def && typeof window.__def.factory === 'function')
+
+        // 捕获剪贴板：把 clipboard.writeText 换成可观测的桩
+        let copied = null
+        try {
+          Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: (value) => { copied = value; return Promise.resolve() } },
+          })
+        } catch (error) { /* 忽略 */ }
+
+        const mod = window.__def.factory(() => ({}))
+        check('exports apply', typeof mod.apply === 'function')
+        let dispose = null
+        mod.apply({ effect: (fn) => { dispose = fn() } })
+        check('apply registers an effect disposer', typeof dispose === 'function')
+
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+        const li = (id) => document.getElementById(id)
+        check('rows marked draggable', li('file').getAttribute('draggable') === 'true' && li('dir').getAttribute('draggable') === 'true')
+        check('diagnostics exposed', !!window.__dshFileTreeActions && window.__dshFileTreeActions.version === '0.2.1')
+
+        const host = () => document.getElementById('dsh-file-tree-actions-root')
+        const shadowOf = () => (host() && host().shadowRoot) || null
+        const menuOf = () => {
+          const s = shadowOf()
+          return s ? s.querySelector('.menu') : null
+        }
+        const labels = () => Array.from(shadowOf().querySelectorAll('.menu .item .label')).map((n) => n.textContent)
+        const itemByLabel = (text) => Array.from(shadowOf().querySelectorAll('.menu .item')).find((b) => {
+          const label = b.querySelector('.label')
+          return label !== null && label.textContent === text
+        })
+        const rightClick = (element) => element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 90 }))
+        const clickLabel = (text) => {
+          const item = itemByLabel(text)
+          if (item === undefined) throw new Error('menu item not found: ' + text)
+          item.click()
+        }
+        const input = () => shadowOf().querySelector('.menu .input')
+        const formError = () => shadowOf().querySelector('.menu .error')
+        const submitEnter = () => input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+        const dangerButton = () => shadowOf().querySelector('.menu .actions .button[data-danger]')
+
+        // ---- 1. 文件行右键菜单 ----
+        rightClick(li('file'))
+        check('menu host mounted once', document.querySelectorAll('#dsh-file-tree-actions-root').length === 1)
+        check('menu visible for file row', menuOf() && menuOf().hidden === false)
+        check(
+          'file menu labels',
+          JSON.stringify(labels()) === JSON.stringify(['复制绝对路径', '复制相对路径', '复制名称', '复制为 @ 引用', '重命名', '移到回收站…']),
+          JSON.stringify(labels()),
+        )
+
+        // 复制绝对 / 相对 / @ 引用
+        clickLabel('复制绝对路径')
+        await wait(30)
+        check('copy absolute path', copied === 'C:/ws/sub/a b.md', copied)
+        rightClick(li('file'))
+        clickLabel('复制相对路径')
+        await wait(30)
+        check('copy relative path', copied === 'sub/a b.md', copied)
+        rightClick(li('file'))
+        clickLabel('复制为 @ 引用')
+        await wait(30)
+        check('copy quoted mention', copied === '@"sub/a b.md"', copied)
+        rightClick(li('plain'))
+        clickLabel('复制为 @ 引用')
+        await wait(30)
+        check('copy plain mention', copied === '@README.md', copied)
+
+        // ---- 2. 目录行菜单：新建项 ----
+        rightClick(li('dir'))
+        check(
+          'directory menu labels',
+          JSON.stringify(labels()) === JSON.stringify(['复制绝对路径', '复制相对路径', '复制名称', '复制为 @ 引用', '新建文件', '新建文件夹', '重命名', '移到回收站…']),
+          JSON.stringify(labels()),
+        )
+
+        // 新建文件：打开表单 → 输入 → Enter
+        window.__calls.length = 0
+        window.__reply = { ok: true }
+        clickLabel('新建文件')
+        check('create form open', !!input() && menuOf().hidden === false)
+        check('create form title', shadowOf().querySelector('.menu .title').textContent === '新建文件')
+        input().value = 'new.md'
+        submitEnter()
+        await wait(60)
+        check(
+          'create-file payload',
+          JSON.stringify(window.__calls[0] && window.__calls[0].payload) === JSON.stringify({ op: 'create-file', root: 'C:\\ws', parent: 'C:\\ws\\sub', name: 'new.md' }),
+          JSON.stringify(window.__calls[0]),
+        )
+        check('create closes menu', menuOf().hidden === true)
+        check('create toast', shadowOf().querySelector('.toast').textContent === '已新建文件')
+
+        // 新建文件夹
+        window.__calls.length = 0
+        rightClick(li('dir'))
+        clickLabel('新建文件夹')
+        input().value = 'assets'
+        submitEnter()
+        await wait(60)
+        check('create-dir payload', window.__calls[0] && window.__calls[0].payload.op === 'create-dir' && window.__calls[0].payload.name === 'assets', JSON.stringify(window.__calls[0]))
+
+        // 非法名字：本地拦下，不发请求
+        window.__calls.length = 0
+        rightClick(li('dir'))
+        clickLabel('新建文件')
+        input().value = 'a/b'
+        submitEnter()
+        await wait(40)
+        check('bad name blocked locally', window.__calls.length === 0 && formError().textContent === '名字不能包含 / 或 \\', formError().textContent)
+
+        // 宿主机拒绝：显示错误且菜单保持打开
+        window.__calls.length = 0
+        window.__reply = { ok: false, error: { code: 'exists', message: '目标已存在' } }
+        input().value = 'dup.md'
+        submitEnter()
+        await wait(60)
+        check('host error shows inline', formError().textContent === '目标已存在' && menuOf().hidden === false, formError().textContent)
+
+        // Esc / 外部点击关闭
+        await wait(10)
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        check('escape closes form', menuOf().hidden === true)
+        rightClick(li('plain'))
+        document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+        check('outside pointerdown closes menu', menuOf().hidden === true)
+
+        // ---- 3. 重命名 ----
+        window.__reply = { ok: true }
+        window.__calls.length = 0
+        rightClick(li('file'))
+        clickLabel('重命名')
+        check('rename prefills current name', input() && input().value === 'a b.md', input() && input().value)
+        input().value = 'c.md'
+        submitEnter()
+        await wait(60)
+        check(
+          'rename payload',
+          JSON.stringify(window.__calls[0] && window.__calls[0].payload) === JSON.stringify({ op: 'rename', root: 'C:\\ws', path: 'C:\\ws\\sub\\a b.md', name: 'c.md' }),
+          JSON.stringify(window.__calls[0]),
+        )
+        check('rename toast', shadowOf().querySelector('.toast').textContent === '已重命名')
+
+        // ---- 4. 删除（二次确认，走回收站） ----
+        window.__calls.length = 0
+        rightClick(li('plain'))
+        clickLabel('移到回收站…')
+        check('delete confirm open', dangerButton() !== null && menuOf().hidden === false)
+        check(
+          'delete confirm title',
+          shadowOf().querySelector('.menu .title').textContent === '删除“README.md”？',
+          shadowOf().querySelector('.menu .title').textContent,
+        )
+        check('delete not sent before confirm', window.__calls.length === 0)
+        dangerButton().click()
+        await wait(60)
+        check(
+          'delete payload',
+          JSON.stringify(window.__calls[0] && window.__calls[0].payload) === JSON.stringify({ op: 'delete', root: 'C:\\ws', path: 'C:\\ws\\README.md' }),
+          JSON.stringify(window.__calls[0]),
+        )
+        check('delete toast', shadowOf().querySelector('.toast').textContent === '已移到回收站')
+
+        // ---- 5. header 根菜单 ----
+        rightClick(document.getElementById('rootPath'))
+        check(
+          'root menu labels',
+          JSON.stringify(labels()) === JSON.stringify(['复制绝对路径', '新建文件', '新建文件夹']),
+          JSON.stringify(labels()),
+        )
+        clickLabel('复制绝对路径')
+        await wait(30)
+        check('copy workspace root', copied === 'C:/ws', copied)
+        rightClick(document.getElementById('rootPath'))
+        clickLabel('新建文件')
+        window.__calls.length = 0
+        input().value = 'root.md'
+        submitEnter()
+        await wait(60)
+        check('create at root payload', window.__calls[0] && window.__calls[0].payload.parent === 'C:\\ws', JSON.stringify(window.__calls[0]))
+
+        // ---- 6. 拖拽 / 清理 ----
+        const dt = new DataTransfer()
+        li('file').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        check('drag text/plain mention', dt.getData('text/plain') === '@"sub/a b.md" ', JSON.stringify(dt.getData('text/plain')))
+        check('drag custom mime', dt.getData('application/x-dsh-file-mention') === '@"sub/a b.md"', JSON.stringify(dt.getData('application/x-dsh-file-mention')))
+        const dt2 = new DataTransfer()
+        li('dir').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt2 }))
+        check('drag directory mention', dt2.getData('text/plain') === '@sub/ ', JSON.stringify(dt2.getData('text/plain')))
+
+        document.body.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+        check('menu stays closed outside tree', menuOf().hidden === true)
+
+        // ---- 7. 陈旧异步完成不得动新菜单 ----
+        shadowOf().querySelector('.toast').textContent = ''
+        window.__defer = true
+        window.__calls.length = 0
+        rightClick(li('dir'))
+        clickLabel('新建文件')
+        input().value = 'slow.md'
+        submitEnter()
+        await wait(20)
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        check('pending create dismissed by escape', menuOf().hidden === true)
+        rightClick(li('plain'))
+        clickLabel('重命名')
+        check('new rename view open', menuOf().hidden === false && input().value === 'README.md')
+        window.__defer = false
+        window.__releasePending()
+        await wait(80)
+        check('stale completion keeps new menu open', menuOf().hidden === false && input().value === 'README.md')
+        check('stale completion does not toast', shadowOf().querySelector('.toast').textContent !== '已新建文件')
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+
+        // ---- 8. 成功写入后立刻卸载：刷新定时器不应再触发 ----
+        window.__reloads = 0
+        rightClick(li('dir'))
+        clickLabel('新建文件夹')
+        input().value = 'tmp'
+        submitEnter()
+        await wait(20)
+        if (typeof dispose === 'function') dispose()
+        await wait(200)
+        check('dispose cancels pending reload', window.__reloads === 0, window.__reloads)
+
+        check('plugin left no errors', window.__errors.length === 0, JSON.stringify(window.__errors))
+        check('dispose removes menu host', !document.getElementById('dsh-file-tree-actions-root'))
+        check('dispose clears draggable flags', !li('file').hasAttribute('draggable') && !li('dir').hasAttribute('data-dsh-fta-drag'))
+      } catch (error) {
+        check('harness threw', false, String(error && error.stack ? error.stack : error))
+      }
+
+      out.pass = out.checks.every((c) => c.pass)
+      out.failed = out.checks.filter((c) => !c.pass).map((c) => c.name)
+      document.getElementById('result').textContent = JSON.stringify(out, null, 2)
+      document.title = out.pass ? 'PASS' : 'FAIL: ' + out.failed.join(', ')
+    })()
+  </script>
+</body>
+</html>

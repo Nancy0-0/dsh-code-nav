@@ -1,0 +1,5 @@
+# dsh-symbol-links bundle patch：向 profile 配置树插入一行本插件。
+# 行 id 必须与包名 / package.json 的 dsh.client 模块 id 一致。
+- insert:
+    - id: dsh-symbol-links
+      name: 'dsh-symbol-links'

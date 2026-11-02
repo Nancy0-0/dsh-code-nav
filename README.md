@@ -55,6 +55,16 @@ dsh plugin --profile desktop add C:\path\to\dsh-code-nav\packages\file-tree-acti
 
 **生效方式**：首次安装或改动 host 半（`index.js` / `lib/*`）后需要**重启 DSH**；只改浏览器半（`client.js`）时刷新页面即可。安装后第一次也要刷新页面。
 
+## 截图
+
+![Files 侧栏右键菜单](packages/file-tree-actions/assets/screenshot-menu.png)
+
+## 发布与收录
+
+- npm 包名分别为 `dsh-symbol-links` / `dsh-file-tree-actions`，发布前检查项见 [docs/RFC.md](docs/RFC.md) §8；
+- awesome-dsh-plugin 的收录材料（两份 `data/plugins/*.yml` + 提交步骤）在 [docs/awesome-submission](docs/awesome-submission)；
+- CI 在 Windows 与 Ubuntu 上跑两个包的语法检查与单元测试。
+
 ## 兼容性
 
 | 项 | 说明 |
@@ -115,7 +125,7 @@ npm run check   # 对两个包的 JS 逐个 node --check
 ## 已知限制
 
 - **精度是正则级，不是编译器级**：宏、模板元编程、同名重载、生成代码可能判错；解析阶梯会回退到包装函数或首次出现，返回结果带 `via` 标注来源。
-- **引用/实现仍是文本级候选（开发中）**：右键可查，但只是文本匹配/同名定义，不是语义引用或接口实现；目前只有定义跳转是稳定闭环。
+- **引用/同名定义是文本级候选**：右键可查，但只是文本匹配/同名定义，不是语义引用或接口实现；定义跳转是稳定闭环，另外两项按候选标注。
 - **索引范围**：默认只索引会话工作区；其他仓库需要在插件配置里显式声明 `extraRoots`（最多 4 个，只读）。超过 5 万个文件、单文件超过 2 MB 的内容会被跳过。
 - **冷启动**：大仓库首次索引有 3.5 秒等待上限，超时返回 `incomplete` 并在后台继续建；期间点击会提示「正在建立索引」。
 - **升级宿主可能失效**：两个客户端半都依赖官方 DOM 约定（会话滚动容器、文件树行属性），宿主升级改选择器时需要跟着改。
@@ -126,7 +136,7 @@ npm run check   # 对两个包的 JS 逐个 node --check
 
 `dsh-code-nav` is a small monorepo of two independent DeepSeek Harness (DSH) web plugins:
 
-- **dsh-symbol-links** turns inline code in chat messages into clickable symbol references. Clicking resolves the name through a deterministic ladder (definition → enclosing wrapper → first occurrence) and opens the file in the right-hand preview at the target line. Definition navigation is implemented; reference and implementation browsing are still in progress.
+- **dsh-symbol-links** turns inline code in chat messages into clickable symbol references. Clicking resolves the name through a deterministic ladder (definition → enclosing wrapper → first occurrence) and opens the file in the right-hand preview at the target line. Right-click adds definition / reference candidates (text match) / same-name definitions / copy name; the last two are text-level candidates, not semantic results.
 - **dsh-file-tree-actions** adds a context menu to the Files sidebar — new file/folder, rename, move to the Windows Recycle Bin, copy absolute/relative path or `@` mention — and lets you drag a row into the composer to insert an `@path` reference.
 
 ```powershell

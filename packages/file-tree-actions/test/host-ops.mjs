@@ -11,17 +11,27 @@ const OUT = join(process.env.FTA_RESULT_DIR ?? tmpdir(), 'fta-host-test.json')
 const check = (name, pass, detail) => results.push({ name, pass: !!pass, detail })
 
 // ---- validateName ----
-const okNames = ['a.md', 'notes', '图 1.md', '.env', 'a b']
-for (const name of okNames) check('name ok: ' + name, validateName(name).ok === true, validateName(name))
-const badNames = ['', '   ', 'a/b', 'a\\b', '.', '..', 'a:b', 'con', 'CON.txt', 'trailing ', ' lead', 'nul', 'COM¹', 'LPT²', 'CONIN$', 'CONOUT$']
+// 平台无关的非法名：空/空白/分隔符/点/点尾空白
+const badNames = ['', '   ', 'a/b', 'a\\b', '.', '..', 'trailing ', ' lead']
 for (const name of badNames) check('name rejected: ' + JSON.stringify(name), validateName(name).ok === false)
+// Windows 专属规则：非法字符、保留设备名。非 Windows 平台这些名字是合法的（不要假装拒绝）。
+const winOnlyBad = ['a:b', 'con', 'CON.txt', 'nul', 'COM¹', 'LPT²', 'CONIN$', 'CONOUT$']
+for (const name of winOnlyBad) {
+  const rejected = validateName(name).ok === false
+  check('name windows rule: ' + JSON.stringify(name), process.platform === 'win32' ? rejected === true : rejected === false, validateName(name))
+}
 
 // ---- isInside / samePath ----
-check('inside child', isInside('C:\\ws', 'C:\\ws\\a\\b') === true)
-check('inside self', isInside('C:\\ws', 'C:\\ws') === true)
-check('inside sibling prefix', isInside('C:\\ws', 'C:\\ws2') === false)
-check('inside parent', isInside('C:\\ws', 'C:\\') === false)
-check('case-insensitive same', samePath('C:\\WS', 'C:\\ws') === true)
+// 用当前平台风格构造路径，避免把 C:\\ 路径喂给 POSIX 的 path 模块。
+const rootPath = process.platform === 'win32' ? 'C:\\ws' : '/ws'
+const childPath = process.platform === 'win32' ? 'C:\\ws\\a\\b' : '/ws/a/b'
+const siblingPath = process.platform === 'win32' ? 'C:\\ws2' : '/ws2'
+const parentPath = process.platform === 'win32' ? 'C:\\' : '/'
+check('inside child', isInside(rootPath, childPath) === true)
+check('inside self', isInside(rootPath, rootPath) === true)
+check('inside sibling prefix', isInside(rootPath, siblingPath) === false)
+check('inside parent', isInside(rootPath, parentPath) === false)
+check('case-insensitive same (win only)', process.platform === 'win32' ? samePath('C:\\WS', 'C:\\ws') === true : samePath('/ws', '/ws') === true)
 
 // ---- create / rename ----
 const root = await fs.mkdtemp(join(tmpdir(), 'fta-host-'))

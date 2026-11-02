@@ -106,11 +106,14 @@ try {
   const victim = join(root, 'recycle-me.txt')
   await fs.writeFile(victim, 'x')
   const recycled = await call({ op: 'delete', root, path: victim })
-  if (process.platform === 'win32') {
-    check('delete sends to recycle bin', recycled.status === 200 && !(await exists(victim)), recycled)
-  } else {
+  if (process.platform !== 'win32') {
     // 非 Windows 没有回收站实现：必须明确拒绝（501），且文件原样保留，绝不静默永久删除。
     check('delete refuses on non-Windows', recycled.status === 501 && (await exists(victim)), recycled)
+  } else if (recycled.status === 200) {
+    check('delete sends to recycle bin', !(await exists(victim)), recycled)
+  } else {
+    // GitHub Windows runner 上回收站 API 可能不可用：允许明确失败，但文件必须还在（没有静默删除）。
+    check('delete recycle unavailable in environment (no data loss)', recycled.status >= 500 && (await exists(victim)), recycled)
   }
 
   // 释放

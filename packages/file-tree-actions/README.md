@@ -70,7 +70,7 @@ node test\host-ops.mjs; node test\host-route.mjs
 | [`test/host-route.mjs`](test/host-route.mjs) | 用假 ctx 捕获注册的路由，覆盖 200/400/403/404/405/409/413、坏 JSON、数组请求体、字段类型、根外路径，并真实执行一次回收站删除 | 22 项 |
 | [`test/harness.html`](test/harness.html) | 同构 DOM + 真实 Chromium：菜单项、复制文本、新建/改名/删除流程与请求载荷、错误回显、拖拽载荷、陈旧异步完成、卸载清理 | 47 项 |
 
-菜单外观预览：`<workspace>/screenshots/fta-menu-preview.png`（`tools/preview-menu.js` 生成）。
+菜单外观预览：[`assets/screenshot-menu.png`](assets/screenshot-menu.png)（`tools/preview-menu.js` 生成）。
 
 ## 外部审核（Kimi）与处理结果
 

@@ -10,8 +10,9 @@ const results = []
 const exists = async (path) => fs.stat(path).then(() => true, () => false)
 const check = (name, pass, detail) => results.push({ name, pass: !!pass, detail })
 
-const root = await fs.mkdtemp(join(tmpdir(), 'fta-route-'))
-const other = await fs.mkdtemp(join(tmpdir(), 'fta-other-'))
+// realpath：Windows 短名/大小写会让"同一目录"的两种写法不相等，测试与生产都按真实路径比对。
+const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), 'fta-route-')))
+const other = await fs.realpath(await fs.mkdtemp(join(tmpdir(), 'fta-other-')))
 let registered = null
 let disposer = null
 const fakeCtx = {
@@ -134,4 +135,5 @@ const out = {
 }
 await fs.writeFile(OUT, JSON.stringify(out, null, 2), 'utf8')
 console.log(out.pass ? 'PASS' : 'FAIL ' + out.failed.join(', '))
+if (!out.pass) console.log('FAILED_DETAIL ' + JSON.stringify(out.results.filter((entry) => !entry.pass)))
 if (!out.pass) process.exitCode = 1

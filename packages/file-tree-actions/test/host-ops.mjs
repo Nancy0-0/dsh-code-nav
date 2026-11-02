@@ -79,4 +79,5 @@ const out = {
 }
 await fs.writeFile(OUT, JSON.stringify({ ...out, results }, null, 2), 'utf8')
 console.log(out.pass ? 'PASS' : 'FAIL ' + out.failed.join(', '))
+if (!out.pass) console.log('FAILED_DETAIL ' + JSON.stringify(results.filter((entry) => !entry.pass)))
 if (!out.pass) process.exitCode = 1

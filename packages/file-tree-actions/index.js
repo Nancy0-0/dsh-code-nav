@@ -142,12 +142,13 @@ async function handle(request, ctx) {
     if (target !== undefined && typeof target !== 'string') return fail(400, 'invalid', 'path 必须是字符串')
 
     const roots = await allowedRoots(ctx)
-    if (!rootAllowed(roots, root)) return fail(403, 'denied', '这个目录不是当前已知的工作区')
+    // 先把 root 解析成真实路径再比对：Windows 短名（RUNNER~1）、大小写、符号链接
+    // 都可能让"同一个目录"的两种写法不相等，按字符串比会误判成越界。
     const rootReal = await realpath(root).catch(() => {
       throw new OpError('not-found', '工作区目录不存在')
     })
-    if (!roots.some((allowed) => isInside(allowed, rootReal) || samePath(allowed, rootReal))) {
-      return fail(403, 'denied', '工作区目录解析到了会话范围之外')
+    if (!roots.some((allowed) => samePath(allowed, rootReal) || isInside(allowed, rootReal))) {
+      return fail(403, 'denied', '这个目录不是当前已知的工作区')
     }
 
     if (op === 'create-file' || op === 'create-dir') {

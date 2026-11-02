@@ -1,5 +1,5 @@
 // Host 半边单测：路径校验 + 新建/重命名（不碰回收站，避免污染真实回收站）。
-// 运行：ELECTRON_RUN_AS_NODE=1 "F:\Deepseek\DeepSeek Harness.exe" --expose-internals test\host-ops.mjs
+// 运行：node test/host-ops.mjs（结果 JSON 默认写系统临时目录，可用 FTA_RESULT_DIR 覆盖）
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,6 +7,7 @@ import { isInside, samePath, validateName } from '../lib/paths.js'
 import { createEntry, OpError, renameEntry } from '../lib/ops.js'
 
 const results = []
+const OUT = join(process.env.FTA_RESULT_DIR ?? tmpdir(), 'fta-host-test.json')
 const check = (name, pass, detail) => results.push({ name, pass: !!pass, detail })
 
 // ---- validateName ----
@@ -66,6 +67,6 @@ const out = {
   checks: results.length,
   failed: results.filter((entry) => !entry.pass).map((entry) => entry.name),
 }
-await fs.writeFile('C:/Users/Administrator/Documents/deepseek-harness/default-workspace/logs/fta-host-test.json', JSON.stringify({ ...out, results }, null, 2), 'utf8')
+await fs.writeFile(OUT, JSON.stringify({ ...out, results }, null, 2), 'utf8')
 console.log(out.pass ? 'PASS' : 'FAIL ' + out.failed.join(', '))
 if (!out.pass) process.exitCode = 1

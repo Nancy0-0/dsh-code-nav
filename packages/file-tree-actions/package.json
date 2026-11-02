@@ -41,6 +41,18 @@
     "recycle-bin"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nancy0-0/dsh-code-nav.git",
+    "directory": "packages/file-tree-actions"
+  },
+  "homepage": "https://github.com/Nancy0-0/dsh-code-nav/tree/main/packages/file-tree-actions",
+  "bugs": {
+    "url": "https://github.com/Nancy0-0/dsh-code-nav/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "check": "node --check index.js && node --check client.js && node --check lib/ops.js && node --check lib/paths.js",
     "test": "node test/host-ops.mjs && node test/host-route.mjs"

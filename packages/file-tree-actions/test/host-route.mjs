@@ -1,11 +1,11 @@
 // Host 路由单测：用假 ctx 捕获注册的 Fetch 路由，直接调 handler。
-// 运行：ELECTRON_RUN_AS_NODE=1 "F:\Deepseek\DeepSeek Harness.exe" --expose-internals test\host-route.mjs
+// 运行：node test/host-route.mjs（结果 JSON 默认写系统临时目录，可用 FTA_RESULT_DIR 覆盖）
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../index.js'
 
-const OUT = 'C:/Users/Administrator/Documents/deepseek-harness/default-workspace/logs/fta-route-test.json'
+const OUT = join(process.env.FTA_RESULT_DIR ?? tmpdir(), 'fta-route-test.json')
 const results = []
 const exists = async (path) => fs.stat(path).then(() => true, () => false)
 const check = (name, pass, detail) => results.push({ name, pass: !!pass, detail })

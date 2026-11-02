@@ -36,7 +36,7 @@
 ## 安装
 
 ```powershell
-dsh plugin --profile desktop add C:\Users\Administrator\Documents\deepseek-harness\default-workspace\plugins\dsh-file-tree-actions
+dsh plugin --profile desktop add C:\path\to\dsh-code-nav\packages\file-tree-actions
 ```
 
 ## 生效方式（重要）
@@ -61,7 +61,7 @@ dsh plugin --profile desktop add C:\Users\Administrator\Documents\deepseek-harne
 三套离线测试，跑之前不需要启动应用：
 
 ```powershell
-powershell -NoProfile -File C:\Users\Administrator\Documents\deepseek-harness\default-workspace\tools\run-fta-test.ps1
+node test\host-ops.mjs; node test\host-route.mjs
 ```
 
 | 套件 | 覆盖 | 结果 |

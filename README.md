@@ -1,11 +1,15 @@
 # dsh-code-nav
 
+[![CI](https://github.com/Nancy0-0/dsh-code-nav/actions/workflows/ci.yml/badge.svg)](https://github.com/Nancy0-0/dsh-code-nav/actions/workflows/ci.yml)
+
 DeepSeek Harness（DSH）的插件 monorepo，包含两个互相独立的小插件，用来减少「聊天 → 文件树 → 编辑器」之间的来回：
 
 - **symbol-links**（npm 包名 `dsh-symbol-links`）——聊天消息里行内代码中的函数名、类型名可以直接点开，在右侧预览中定位到源码行。
 - **file-tree-actions**（npm 包名 `dsh-file-tree-actions`）——给 Files 侧栏补上右键新建文件夹/文件、改名、移到回收站、复制路径，以及把文件拖进对话栏生成 `@` 引用。
 
 两个包各自带 host 半和浏览器半，不共享运行时，也没有构建步骤；可以单独安装、单独卸载。
+
+仓库：<https://github.com/Nancy0-0/dsh-code-nav>（MIT）
 
 ## 包一览
 

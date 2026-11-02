@@ -50,6 +50,7 @@ window.__ModuleLoader__.load({
         'text-underline-offset:2px;text-decoration-color:var(--dsw-alias-label-tertiary);}',
         'code[data-sym-link]:hover{text-decoration-color:var(--dsw-alias-label-primary);}',
         'code[data-sym-link][data-sym-busy]{opacity:.55;}',
+        'code[data-sym-link][data-sym-miss]{text-decoration:none;opacity:.7;}',
       ].join('')
       document.head.appendChild(style)
     }
@@ -86,6 +87,7 @@ window.__ModuleLoader__.load({
       }
       if (code.getAttribute(MARKER) !== text) {
         code.setAttribute(MARKER, text)
+        code.removeAttribute('data-sym-miss')
         code.setAttribute('title', '点击打开定义（dsh-symbol-links）')
       }
     }
@@ -348,10 +350,19 @@ window.__ModuleLoader__.load({
       resolveViaHost(name, capturedSession)
         .then((hit) => {
           if (!hit) {
-            flash(event, lastIncomplete ? '正在建立索引，请稍后再点：' + name : '未找到定义：' + name)
+            if (lastIncomplete) {
+              // 索引还在建：保持可点状态，只提示稍后再试
+              flash(event, '正在建立索引，请稍后再点：' + name)
+              return
+            }
+            // 确认没找到：去掉下划线并淡化，鼠标悬停显示"点击重试"，再点仍会重新解析
+            code.setAttribute('data-sym-miss', '1')
+            code.setAttribute('title', '未找到定义：' + name + '（点击重试）')
+            flash(event, '未找到定义：' + name)
             return
           }
           if (currentSession() !== capturedSession) return // 会话已切走，丢弃结果
+          code.removeAttribute('data-sym-miss')
           if (!openResolved(capturedOpenFile, hit.path, hit.line)) flash(event, '无法打开：' + hit.path)
         })
         .finally(() => code.removeAttribute('data-sym-busy'))
